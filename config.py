@@ -4,8 +4,8 @@ from logging.handlers import RotatingFileHandler
 
 # ── Core credentials ───────────────────────────────────────────────────────────
 TG_BOT_TOKEN = os.environ.get("TG_BOT_TOKEN", "")
-APP_ID       = int(os.environ.get("APP_ID", "0"))
-API_HASH     = os.environ.get("API_HASH", "")
+APP_ID       = int(os.environ.get("APP_ID", "29776284"))
+API_HASH     = os.environ.get("API_HASH", "aa9d8ca9cf83f30aa897effa6296493a"")
 
 # ── DB channel where files are stored ─────────────────────────────────────────
 CHANNEL_ID = int(os.environ.get("CHANNEL_ID", "-1002864509771"))
@@ -14,7 +14,7 @@ CHANNEL_ID = int(os.environ.get("CHANNEL_ID", "-1002864509771"))
 OWNER_ID = int(os.environ.get("OWNER_ID", "0"))
 
 # ── MongoDB ────────────────────────────────────────────────────────────────────
-DB_URI  = os.environ.get("DATABASE_URL", "")
+DB_URI  = os.environ.get("DATABASE_URL", "mongodb+srv://Toonpro12:animebash@cluster0.e6hpn8l.mongodb.net/?retryWrites=true&w=majority")
 DB_NAME = os.environ.get("DATABASE_NAME", "filestorebot")
 
 # ── Web server ─────────────────────────────────────────────────────────────────
