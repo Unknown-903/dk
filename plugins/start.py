@@ -5,7 +5,7 @@ from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, 
 from pyrogram.errors import FloodWait, UserIsBlocked, InputUserDeactivated
 
 from bot import Bot
-from config import OWNER_ID, START_MSG, FORCE_MSG, PROTECT_CONTENT, START_PIC, FORCE_PIC, HELP_TXT, ABOUT_TXT
+from config import OWNER_ID, ADMINS, START_MSG, FORCE_MSG, PROTECT_CONTENT, START_PIC, FORCE_PIC, HELP_TXT, ABOUT_TXT
 from helper_func import subscribed, encode, decode, get_messages, readable_time
 from database.database import (
     add_user, del_user, full_userbase, present_user,
@@ -127,20 +127,18 @@ async def start_command(client: Bot, message: Message):
          InlineKeyboardButton("ℹ️ About", callback_data="about")],
         [InlineKeyboardButton("❌ Close", callback_data="close")],
     ]
-    kwargs = dict(
-        caption=start_text.format(
-            first=message.from_user.first_name,
-            last=message.from_user.last_name or "",
-            username="" if not message.from_user.username else "@" + message.from_user.username,
-            mention=message.from_user.mention,
-            id=uid,
-        ),
-        reply_markup=InlineKeyboardMarkup(buttons),
+    formatted = start_text.format(
+        first=message.from_user.first_name,
+        last=message.from_user.last_name or "",
+        username="" if not message.from_user.username else "@" + message.from_user.username,
+        mention=message.from_user.mention,
+        id=uid,
     )
+    markup = InlineKeyboardMarkup(buttons)
     if START_PIC:
-        await message.reply_photo(photo=START_PIC, **kwargs)
+        await message.reply_photo(photo=START_PIC, caption=formatted, reply_markup=markup)
     else:
-        await message.reply_text(**kwargs)
+        await message.reply_text(text=formatted, reply_markup=markup)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -177,11 +175,11 @@ async def not_joined(client: Bot, message: Message):
         mention=message.from_user.mention,
         id=message.from_user.id,
     )
-    kwargs = dict(caption=caption, reply_markup=InlineKeyboardMarkup(buttons) if buttons else None)
+    markup = InlineKeyboardMarkup(buttons) if buttons else None
     if FORCE_PIC:
-        await message.reply_photo(photo=FORCE_PIC, **kwargs)
+        await message.reply_photo(photo=FORCE_PIC, caption=caption, reply_markup=markup)
     else:
-        await message.reply_text(**kwargs)
+        await message.reply_text(text=caption, reply_markup=markup)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -253,8 +251,12 @@ async def status_cmd(client: Bot, message: Message):
 # ─────────────────────────────────────────────────────────────────────────────
 # /broadcast  (owner only)
 # ─────────────────────────────────────────────────────────────────────────────
-@Bot.on_message(filters.command("bord") & filters.private & filters.user(OWNER_ID))
+@Bot.on_message(filters.command("bord") & filters.private)
 async def broadcast(client: Bot, message: Message):
+    uid = message.from_user.id
+    if uid != OWNER_ID and uid not in ADMINS and not await present_admin(uid):
+        await message.reply_text("❌ Only admins can use this command.")
+        return
     if not message.reply_to_message:
         await message.reply_text("Reply to a message with /bord to broadcast it.")
         return
