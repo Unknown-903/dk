@@ -13,11 +13,9 @@ from database.database import present_admin, is_banned, get_fsub_channels
 async def is_subscribed(filter, client, update):
     user_id = update.from_user.id
 
-    # Banned users never pass
     if await is_banned(user_id):
         return False
 
-    # Owner & admins always pass
     if user_id == OWNER_ID or user_id in ADMINS:
         return True
     if await present_admin(user_id):
@@ -29,7 +27,10 @@ async def is_subscribed(filter, client, update):
 
     member_ok = (ChatMemberStatus.OWNER, ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.MEMBER)
 
-    for ch_id in channels:
+    for ch in channels:
+        ch_id   = ch['id']
+        ch_type = ch.get('type', 'public')
+
         try:
             member = await client.get_chat_member(chat_id=ch_id, user_id=user_id)
             if member.status not in member_ok:
@@ -37,7 +38,10 @@ async def is_subscribed(filter, client, update):
         except UserNotParticipant:
             return False
         except Exception:
-            # Channel inaccessible — skip silently
+            # For request-type channels bot may not be able to check non-members
+            # Treat as not subscribed to be safe
+            if ch_type == 'request':
+                return False
             continue
 
     return True
