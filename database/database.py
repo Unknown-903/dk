@@ -137,6 +137,26 @@ async def update_setting(key: str, value):
     settings_data.update_one({'_id': 'settings'}, {'$set': {key: value}}, upsert=True)
 
 
+# ── Join Requests ─────────────────────────────────────────────────────────────
+# Stores user IDs who have sent a join request to any request-type fsub channel
+
+join_requests = database['join_requests']
+
+async def has_join_request(user_id: int, channel_id: int) -> bool:
+    loop = asyncio.get_running_loop()
+    found = await loop.run_in_executor(
+        None, join_requests.find_one, {'user_id': user_id, 'channel_id': channel_id}
+    )
+    return bool(found)
+
+async def save_join_request(user_id: int, channel_id: int):
+    if not await has_join_request(user_id, channel_id):
+        join_requests.insert_one({'user_id': user_id, 'channel_id': channel_id})
+
+async def remove_join_request(user_id: int, channel_id: int):
+    join_requests.delete_one({'user_id': user_id, 'channel_id': channel_id})
+
+
 # ── Upload / rank stats ────────────────────────────────────────────────────────
 async def record_upload(user_id: int, count: int = 1):
     upload_stats.update_one({'_id': user_id}, {'$inc': {'uploads': count}}, upsert=True)
