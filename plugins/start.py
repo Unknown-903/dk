@@ -9,7 +9,8 @@ from config import OWNER_ID, ADMINS, START_MSG, FORCE_MSG, PROTECT_CONTENT, STAR
 from helper_func import subscribed, encode, decode, get_messages, readable_time
 from database.database import (
     add_user, del_user, full_userbase, present_user,
-    present_admin, is_banned, get_fsub_channels, get_settings
+    present_admin, is_banned, get_fsub_channels, get_settings,
+    has_join_request
 )
 
 
@@ -151,23 +152,36 @@ async def not_joined(client: Bot, message: Message):
         return
 
     channels = await get_fsub_channels()
-    buttons  = []
+    uid_check = message.from_user.id
+    buttons   = []
     for ch in channels:
         ch_id   = ch['id']
         ch_type = ch.get('type', 'public')
-        # request type → use owner-set link; public → use cached invite link
+
         if ch_type == 'request':
             link = ch.get('link') or ""
+            try:
+                chat = await client.get_chat(ch_id)
+                name = chat.title or str(ch_id)
+            except Exception:
+                name = str(ch_id)
+            # Check if user already sent request
+            already_requested = await has_join_request(uid_check, ch_id)
+            if already_requested:
+                # User sent request but still not getting file — show info
+                buttons.append([InlineKeyboardButton(f"✅ Request Sent — {name}", url=link)])
+            else:
+                buttons.append([InlineKeyboardButton(f"📨 Send Request — {name}", url=link)])
         else:
             link = client.fsub_invite_links.get(ch_id, "")
-        try:
-            chat = await client.get_chat(ch_id)
-            name = chat.title or str(ch_id)
-        except Exception:
-            name = str(ch_id)
-        icon = "🔒" if ch_type == "request" else "📢"
-        if link:
-            buttons.append([InlineKeyboardButton(f"{icon} {name}", url=link)])
+            try:
+                chat = await client.get_chat(ch_id)
+                name = chat.title or str(ch_id)
+            except Exception:
+                name = str(ch_id)
+            icon = "🔒" if ch_type == "private" else "📢"
+            if link:
+                buttons.append([InlineKeyboardButton(f"{icon} {name}", url=link)])
 
     try:
         deep = message.command[1]
