@@ -69,10 +69,9 @@ async def start_command(client: Bot, message: Message):
             return
 
         settings = await get_settings()
-        auto_del  = settings.get("auto_del", True)
-        del_timer = settings.get("del_timer", 120)
+        auto_del   = settings.get("auto_del", True)
+        del_timer  = settings.get("del_timer", 120)
         custom_cap = settings.get("custom_caption")
-        dump_ch    = settings.get("dump_channel")
 
         wait_msg = await message.reply("⏳ Please wait...")
         try:
@@ -100,13 +99,6 @@ async def start_command(client: Bot, message: Message):
                     reply_markup=None,
                     protect_content=PROTECT_CONTENT,
                 )
-                # Mirror to dump channel if set
-                if dump_ch:
-                    try:
-                        await msg.copy(chat_id=dump_ch, caption=caption, parse_mode=ParseMode.HTML)
-                    except Exception:
-                        pass
-
                 if auto_del:
                     asyncio.create_task(_del_after(sent, del_timer))
                 if idx == len(messages) - 1:
@@ -158,27 +150,21 @@ async def not_joined(client: Bot, message: Message):
         ch_id   = ch['id']
         ch_type = ch.get('type', 'public')
 
+        # Resolve display name: custom_name > Telegram title > ID
+        try:
+            tg_name = (await client.get_chat(ch_id)).title or str(ch_id)
+        except Exception:
+            tg_name = str(ch_id)
+        name = ch.get('custom_name') or tg_name
+
         if ch_type == 'request':
             link = ch.get('link') or ""
-            try:
-                chat = await client.get_chat(ch_id)
-                name = chat.title or str(ch_id)
-            except Exception:
-                name = str(ch_id)
-            # Check if user already sent request
             already_requested = await has_join_request(uid_check, ch_id)
-            if already_requested:
-                # User sent request but still not getting file — show info
-                buttons.append([InlineKeyboardButton(f"✅ Request Sent — {name}", url=link)])
-            else:
-                buttons.append([InlineKeyboardButton(f"📨 Send Request — {name}", url=link)])
+            label = f"✅ {name} — Request Sent" if already_requested else f"📨 {name} — Send Request"
+            if link:
+                buttons.append([InlineKeyboardButton(label, url=link)])
         else:
             link = client.fsub_invite_links.get(ch_id, "")
-            try:
-                chat = await client.get_chat(ch_id)
-                name = chat.title or str(ch_id)
-            except Exception:
-                name = str(ch_id)
             icon = "🔒" if ch_type == "private" else "📢"
             if link:
                 buttons.append([InlineKeyboardButton(f"{icon} {name}", url=link)])
