@@ -5,7 +5,7 @@ from logging.handlers import RotatingFileHandler
 # ── Core credentials ───────────────────────────────────────────────────────────
 TG_BOT_TOKEN = os.environ.get("TG_BOT_TOKEN", "8702430221:AAHv4Y9fusBH0GBmWRcRdqzxi07CCcLYh2A")
 APP_ID       = int(os.environ.get("APP_ID", "29776284"))
-API_HASH     = os.environ.get("API_HASH", "aa9d8ca9cf83f30aa897effa6296493a"")
+API_HASH     = os.environ.get("API_HASH", "aa9d8ca9cf83f30aa897effa6296493a")
 
 # ── DB channel where files are stored ─────────────────────────────────────────
 CHANNEL_ID = int(os.environ.get("CHANNEL_ID", "-1003733110631"))
