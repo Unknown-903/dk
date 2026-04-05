@@ -85,22 +85,25 @@ async def get_fsub_channels() -> list:
     doc = await loop.run_in_executor(None, _get_fsub_doc)
     return doc.get('channels', [])
 
-async def add_fsub_channel(channel_id: int, ch_type: str, link: str = None) -> bool:
+async def add_fsub_channel(channel_id: int, ch_type: str, link: str = None, custom_name: str = None) -> bool:
     """Returns False if already exists, True on success."""
     channels = await get_fsub_channels()
     if any(ch['id'] == channel_id for ch in channels):
         return False
-    channels.append({'id': channel_id, 'type': ch_type, 'link': link})
+    channels.append({'id': channel_id, 'type': ch_type, 'link': link, 'custom_name': custom_name})
     fsub_data.update_one({'_id': 'fsub'}, {'$set': {'channels': channels}}, upsert=True)
     return True
 
-async def update_fsub_channel(channel_id: int, ch_type: str, link: str = None):
-    """Update type/link of an existing fsub channel."""
+async def update_fsub_channel(channel_id: int, ch_type: str = None, link: str = None, custom_name: str = None, update_name: bool = False):
+    """Update type/link/custom_name of an existing fsub channel."""
     channels = await get_fsub_channels()
     for ch in channels:
         if ch['id'] == channel_id:
-            ch['type'] = ch_type
-            ch['link'] = link
+            if ch_type is not None:
+                ch['type'] = ch_type
+                ch['link'] = link
+            if update_name:
+                ch['custom_name'] = custom_name
             break
     fsub_data.update_one({'_id': 'fsub'}, {'$set': {'channels': channels}}, upsert=True)
 
