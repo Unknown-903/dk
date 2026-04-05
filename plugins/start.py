@@ -152,15 +152,22 @@ async def not_joined(client: Bot, message: Message):
 
     channels = await get_fsub_channels()
     buttons  = []
-    for ch_id in channels:
-        link = client.fsub_invite_links.get(ch_id, "")
+    for ch in channels:
+        ch_id   = ch['id']
+        ch_type = ch.get('type', 'public')
+        # request type → use owner-set link; public → use cached invite link
+        if ch_type == 'request':
+            link = ch.get('link') or ""
+        else:
+            link = client.fsub_invite_links.get(ch_id, "")
         try:
             chat = await client.get_chat(ch_id)
             name = chat.title or str(ch_id)
         except Exception:
             name = str(ch_id)
+        icon = "🔒" if ch_type == "request" else "📢"
         if link:
-            buttons.append([InlineKeyboardButton(f"📢 {name}", url=link)])
+            buttons.append([InlineKeyboardButton(f"{icon} {name}", url=link)])
 
     try:
         deep = message.command[1]
