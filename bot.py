@@ -52,13 +52,20 @@ class Bot(Client):
         # ── Validate fsub channels (warn, don't crash) ─────────────────────
         channels = await get_fsub_channels()
         self.fsub_invite_links = {}
-        for ch_id in channels:
-            try:
-                chat = await self.get_chat(ch_id)
-                link = chat.invite_link or await self.export_chat_invite_link(ch_id)
-                self.fsub_invite_links[ch_id] = link
-            except Exception as e:
-                self.LOGGER(__name__).warning(f"FSub channel {ch_id} inaccessible: {e}")
+        for ch in channels:
+            ch_id   = ch['id']
+            ch_type = ch.get('type', 'public')
+            # Only cache invite links for public channels
+            if ch_type == 'public':
+                try:
+                    chat = await self.get_chat(ch_id)
+                    link = chat.invite_link or await self.export_chat_invite_link(ch_id)
+                    self.fsub_invite_links[ch_id] = link
+                except Exception as e:
+                    self.LOGGER(__name__).warning(f"FSub channel {ch_id} inaccessible: {e}")
+            else:
+                # request type — link is stored in DB, no caching needed
+                self.LOGGER(__name__).info(f"FSub channel {ch_id} is request-type, skipping invite link cache.")
 
         self.set_parse_mode(ParseMode.HTML)
         self.LOGGER(__name__).info(f"Bot @{self.username} started successfully.")
