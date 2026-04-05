@@ -5,12 +5,12 @@ from config import DB_URI, DB_NAME
 dbclient = pymongo.MongoClient(DB_URI)
 database = dbclient[DB_NAME]
 
-user_data      = database['users']
-admin_data     = database['admins']
-banned_data    = database['banned']
-fsub_data      = database['fsub_channels']
-settings_data  = database['bot_settings']
-upload_stats   = database['upload_stats']
+user_data     = database['users']
+admin_data    = database['admins']
+banned_data   = database['banned']
+fsub_data     = database['fsub_channels']
+settings_data = database['bot_settings']
+upload_stats  = database['upload_stats']
 
 
 # ── Users ──────────────────────────────────────────────────────────────────────
@@ -68,43 +68,60 @@ async def unban_user(user_id: int):
     banned_data.delete_one({'_id': user_id})
 
 
-# ── FSub channels (stored as list in one document) ─────────────────────────────
+# ── FSub channels ──────────────────────────────────────────────────────────────
+# Each channel stored as:
+#   { 'id': int, 'type': 'public' | 'request', 'link': str | None }
+#
+# public  → bot is admin, membership checked via get_chat_member
+# request → private channel with approval; owner sets custom join-request link
+
 def _get_fsub_doc() -> dict:
     doc = fsub_data.find_one({'_id': 'fsub'})
     return doc or {'_id': 'fsub', 'channels': []}
 
 async def get_fsub_channels() -> list:
+    """Returns list of channel dicts: [{id, type, link}, ...]"""
     loop = asyncio.get_running_loop()
     doc = await loop.run_in_executor(None, _get_fsub_doc)
     return doc.get('channels', [])
 
-async def add_fsub_channel(channel_id: int) -> bool:
+async def add_fsub_channel(channel_id: int, ch_type: str, link: str = None) -> bool:
     """Returns False if already exists, True on success."""
     channels = await get_fsub_channels()
-    if channel_id in channels:
+    if any(ch['id'] == channel_id for ch in channels):
         return False
-    channels.append(channel_id)
+    channels.append({'id': channel_id, 'type': ch_type, 'link': link})
     fsub_data.update_one({'_id': 'fsub'}, {'$set': {'channels': channels}}, upsert=True)
     return True
+
+async def update_fsub_channel(channel_id: int, ch_type: str, link: str = None):
+    """Update type/link of an existing fsub channel."""
+    channels = await get_fsub_channels()
+    for ch in channels:
+        if ch['id'] == channel_id:
+            ch['type'] = ch_type
+            ch['link'] = link
+            break
+    fsub_data.update_one({'_id': 'fsub'}, {'$set': {'channels': channels}}, upsert=True)
 
 async def remove_fsub_channel(channel_id: int) -> bool:
     """Returns False if not found."""
     channels = await get_fsub_channels()
-    if channel_id not in channels:
+    new = [ch for ch in channels if ch['id'] != channel_id]
+    if len(new) == len(channels):
         return False
-    channels.remove(channel_id)
-    fsub_data.update_one({'_id': 'fsub'}, {'$set': {'channels': channels}}, upsert=True)
+    fsub_data.update_one({'_id': 'fsub'}, {'$set': {'channels': new}}, upsert=True)
     return True
 
 
-# ── Bot settings (auto-delete, custom message, dump channel) ───────────────────
+# ── Bot settings ───────────────────────────────────────────────────────────────
 def _default_settings() -> dict:
     return {
         '_id': 'settings',
         'auto_del': True,
         'del_timer': 120,
-        'custom_caption': None,
         'dump_channel': None,
+        'custom_start_msg': None,
     }
 
 async def get_settings() -> dict:
@@ -129,6 +146,5 @@ async def get_upload_stats(user_id: int) -> int:
     return doc['uploads'] if doc else 0
 
 async def get_leaderboard(limit: int = 10) -> list:
-    """Returns list of (user_id, uploads) sorted desc."""
     docs = upload_stats.find().sort('uploads', pymongo.DESCENDING).limit(limit)
     return [(doc['_id'], doc['uploads']) for doc in docs]
