@@ -39,7 +39,7 @@ async def _mfsub_panel(client) -> tuple[str, InlineKeyboardMarkup]:
         except Exception:
             name = str(ch_id)
 
-        type_icon = "🔒" if ch_type == "request" else "🌐"
+        type_icon = "📨" if ch_type == "request" else ("🔒" if ch_type == "private" else "🌐")
         lines.append(f"{type_icon} <b>{name}</b> — <code>{ch_id}</code> ({ch_type})")
 
         row = [
@@ -59,29 +59,34 @@ async def _mfsub_panel(client) -> tuple[str, InlineKeyboardMarkup]:
 async def fsub_start(client: Bot, message: Message):
     markup = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("🔒 Request", callback_data="fsub_type:request"),
+            InlineKeyboardButton("📨 Request", callback_data="fsub_type:request"),
+        ],
+        [
             InlineKeyboardButton("🌐 Public",  callback_data="fsub_type:public"),
+            InlineKeyboardButton("🔒 Private", callback_data="fsub_type:private"),
         ],
         [InlineKeyboardButton("❌ Cancel", callback_data="fsub_cancel")],
     ])
     await message.reply_text(
         "<b>➕ New FSub Channel</b>\n\n"
         "Channel ka type choose karo:\n\n"
-        "🔒 <b>Request</b> — Private channel jisme log request bhejte hain join ke liye\n"
-        "🌐 <b>Public</b> — Public ya private channel jisme bot admin hai",
+        "📨 <b>Request</b> — Join request collect karta hai, file access freely milti hai\n"
+        "🌐 <b>Public</b> — Public channel, bot admin hona chahiye\n"
+        "🔒 <b>Private</b> — Private channel, bot admin hona chahiye, invite link se join",
         reply_markup=markup,
     )
 
 
-@Bot.on_callback_query(filters.regex(r"^fsub_type:(request|public)$"))
+@Bot.on_callback_query(filters.regex(r"^fsub_type:(request|public|private)$"))
 async def fsub_type_chosen(client: Bot, query: CallbackQuery):
     if query.from_user.id != OWNER_ID:
         await query.answer("❌ Sirf owner.", show_alert=True)
         return
 
     ch_type = query.matches[0].group(1)
+    icons = {'request': '📨 Request', 'public': '🌐 Public', 'private': '🔒 Private'}
     await query.message.edit_text(
-        f"<b>{'🔒 Request' if ch_type == 'request' else '🌐 Public'} FSub</b>\n\n"
+        f"<b>{icons.get(ch_type, ch_type)} FSub</b>\n\n"
         "Ab channel ID bhejo (e.g. <code>-1002864509771</code>):\n\n"
         "Send /cancel to abort."
     )
@@ -154,13 +159,13 @@ async def fsub_type_chosen(client: Bot, query: CallbackQuery):
         )
 
     else:
-        # Public type
-        added = await add_fsub_channel(ch_id, "public", None)
+        # Public or Private type — both need bot as admin
+        added = await add_fsub_channel(ch_id, ch_type, None)
         if not added:
             await reply.reply_text(f"⚠️ Channel <code>{ch_id}</code> already added hai.")
             return
 
-        # Cache invite link for force-sub message
+        # Cache invite link
         try:
             chat = await client.get_chat(ch_id)
             name = chat.title
@@ -169,9 +174,10 @@ async def fsub_type_chosen(client: Bot, query: CallbackQuery):
         except Exception:
             name = str(ch_id)
 
+        icon = "🌐 Public" if ch_type == "public" else "🔒 Private"
         await reply.reply_text(
             f"✅ <b>{name}</b> (<code>{ch_id}</code>) added!\n"
-            f"Type: 🌐 Public"
+            f"Type: {icon}"
         )
 
 
@@ -232,8 +238,9 @@ async def mfsub_edit(client: Bot, query: CallbackQuery):
 
     markup = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("🔒 Request mein badlo", callback_data=f"mfsub_chtype:{ch_id}:request"),
-            InlineKeyboardButton("🌐 Public mein badlo",  callback_data=f"mfsub_chtype:{ch_id}:public"),
+            InlineKeyboardButton("📨 Request", callback_data=f"mfsub_chtype:{ch_id}:request"),
+            InlineKeyboardButton("🌐 Public",  callback_data=f"mfsub_chtype:{ch_id}:public"),
+            InlineKeyboardButton("🔒 Private", callback_data=f"mfsub_chtype:{ch_id}:private"),
         ],
         [InlineKeyboardButton("🔗 Link update karo",      callback_data=f"mfsub_chlink:{ch_id}")],
         [InlineKeyboardButton("⬅️ Back",                  callback_data="mfsub_back")],
@@ -249,7 +256,7 @@ async def mfsub_edit(client: Bot, query: CallbackQuery):
 
 
 # Change type
-@Bot.on_callback_query(filters.regex(r"^mfsub_chtype:(-?\d+):(request|public)$"))
+@Bot.on_callback_query(filters.regex(r"^mfsub_chtype:(-?\d+):(request|public|private)$"))
 async def mfsub_change_type(client: Bot, query: CallbackQuery):
     if query.from_user.id != OWNER_ID:
         await query.answer("❌ Sirf owner.", show_alert=True)
@@ -284,14 +291,15 @@ async def mfsub_change_type(client: Bot, query: CallbackQuery):
         await update_fsub_channel(ch_id, "request", link)
         await reply.reply_text(f"✅ Type → 🔒 Request\nLink: {link}")
     else:
-        await update_fsub_channel(ch_id, "public", None)
-        # Cache invite link
+        await update_fsub_channel(ch_id, ch_type, None)
+        # Cache invite link for public/private
         try:
             link = (await client.get_chat(ch_id)).invite_link or await client.export_chat_invite_link(ch_id)
             client.fsub_invite_links[ch_id] = link
         except Exception:
             pass
-        await query.message.edit_text(f"✅ Type → 🌐 Public")
+        icon = "🌐 Public" if ch_type == "public" else "🔒 Private"
+        await query.message.edit_text(f"✅ Type → {icon}")
         await query.answer()
 
     text, markup = await _mfsub_panel(client)
