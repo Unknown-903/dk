@@ -13,7 +13,7 @@ from helper_func import encode, get_message_id
 # Private message (admin sends file → generate link)
 # ─────────────────────────────────────────────────────────────────────────────
 IGNORED_CMDS = ["start", "users", "bord", "batch", "genlink",
-                "status", "fsub", "sf", "chnge", "add", "rm", "admins",
+                "status", "fsub", "mfsub", "add", "rm", "admins",
                 "ban", "unban", "rank", "modify"]
 
 @Bot.on_message(filters.private & ~filters.command(IGNORED_CMDS))
