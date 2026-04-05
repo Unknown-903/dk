@@ -6,7 +6,7 @@ from pyrogram.enums import ChatMemberStatus
 from pyrogram.errors import UserNotParticipant, FloodWait
 
 from config import ADMINS, OWNER_ID
-from database.database import present_admin, is_banned, get_fsub_channels
+from database.database import present_admin, is_banned, get_fsub_channels, has_join_request
 
 
 # ── Subscription check ─────────────────────────────────────────────────────────
@@ -31,6 +31,13 @@ async def is_subscribed(filter, client, update):
         ch_id   = ch['id']
         ch_type = ch.get('type', 'public')
 
+        # Request channels — DB mein check karo ki user ne request bheji hai ya nahi
+        if ch_type == 'request':
+            if not await has_join_request(user_id, ch_id):
+                return False
+            continue
+
+        # Public / Private channels — membership check karo
         try:
             member = await client.get_chat_member(chat_id=ch_id, user_id=user_id)
             if member.status not in member_ok:
@@ -38,10 +45,6 @@ async def is_subscribed(filter, client, update):
         except UserNotParticipant:
             return False
         except Exception:
-            # For request-type channels bot may not be able to check non-members
-            # Treat as not subscribed to be safe
-            if ch_type == 'request':
-                return False
             continue
 
     return True
