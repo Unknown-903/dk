@@ -12,38 +12,55 @@ def _is_owner_or_admin(uid: int) -> bool:
 
 
 async def _settings_markup(settings: dict) -> InlineKeyboardMarkup:
-    auto_del    = settings.get("auto_del", True)
-    del_timer   = settings.get("del_timer", 120)
-    dump_ch     = settings.get("dump_channel")
-    custom_start = settings.get("custom_start_msg")
+    auto_del      = settings.get("auto_del", True)
+    del_timer     = settings.get("del_timer", 120)
+    dump_ch       = settings.get("dump_channel")
+    custom_start  = settings.get("custom_start_msg")
+    protect       = settings.get("protect_content", False)
 
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton(
-            f"🗑 Auto Delete: {'✅ ON' if auto_del else '❌ OFF'}",
-            callback_data="toggle:auto_del"
-        )],
-        [InlineKeyboardButton(
-            f"⏱ Delete Timer: {readable_time(del_timer)}",
-            callback_data="set:del_timer"
-        )],
-        [InlineKeyboardButton(
-            f"📦 Dump Channel: {'✅ ' + str(dump_ch) if dump_ch else '❌ None'}",
-            callback_data="set:dump_channel"
-        )],
-        [InlineKeyboardButton(
-            f"💬 Start Message: {'✅ Custom' if custom_start else '⚙️ Default'}",
-            callback_data="set:custom_start_msg"
-        )],
+        # Row 1 — two toggles side by side
+        [
+            InlineKeyboardButton(
+                f"🗑 Auto Del: {'✅' if auto_del else '❌'}",
+                callback_data="toggle:auto_del"
+            ),
+            InlineKeyboardButton(
+                f"🔒 Protect: {'✅' if protect else '❌'}",
+                callback_data="toggle:protect_content"
+            ),
+        ],
+        # Row 2 — timer (full width, needs input)
+        [
+            InlineKeyboardButton(
+                f"⏱ Delete Timer: {readable_time(del_timer)}",
+                callback_data="set:del_timer"
+            ),
+        ],
+        # Row 3 — dump + start msg side by side
+        [
+            InlineKeyboardButton(
+                f"📦 Dump: {'✅' if dump_ch else '❌'}",
+                callback_data="set:dump_channel"
+            ),
+            InlineKeyboardButton(
+                f"💬 Start Msg: {'✅' if custom_start else '⚙️'}",
+                callback_data="set:custom_start_msg"
+            ),
+        ],
+        # Row 4 — close
         [InlineKeyboardButton("❌ Close", callback_data="close_modify")],
     ])
 
 
 def _settings_text(settings: dict) -> str:
-    custom_start = settings.get("custom_start_msg")
+    custom_start  = settings.get("custom_start_msg")
+    protect       = settings.get("protect_content", False)
     preview = (custom_start[:40] + "…") if custom_start and len(custom_start) > 40 else (custom_start or "Default")
     return (
         "<b>⚙️ Bot Settings</b>\n\n"
         f"🗑 Auto Delete: <b>{'ON' if settings.get('auto_del', True) else 'OFF'}</b>\n"
+        f"🔒 Protect Content: <b>{'ON' if protect else 'OFF'}</b>\n"
         f"⏱ Delete Timer: <b>{readable_time(settings.get('del_timer', 120))}</b>\n"
         f"📦 Dump Channel: <b>{settings.get('dump_channel') or 'None'}</b>\n"
         f"💬 Start Message: <b>{preview}</b>\n\n"
@@ -64,21 +81,27 @@ async def modify_cmd(client: Bot, message: Message):
     )
 
 
-# ── Toggle auto_del ───────────────────────────────────────────────────────────
-@Bot.on_callback_query(filters.regex(r"^toggle:auto_del$"))
-async def toggle_auto_del(client: Bot, query: CallbackQuery):
+# ── Toggles ───────────────────────────────────────────────────────────────────
+@Bot.on_callback_query(filters.regex(r"^toggle:(auto_del|protect_content)$"))
+async def toggle_setting(client: Bot, query: CallbackQuery):
     if not _is_owner_or_admin(query.from_user.id):
         await query.answer("❌ No permission.", show_alert=True)
         return
+
+    field    = query.matches[0].group(1)
     settings = await get_settings()
-    new_val  = not settings.get("auto_del", True)
-    await update_setting("auto_del", new_val)
-    settings["auto_del"] = new_val
+    defaults = {"auto_del": True, "protect_content": False}
+    new_val  = not settings.get(field, defaults[field])
+
+    await update_setting(field, new_val)
+    settings[field] = new_val
+
     await query.message.edit_text(
         _settings_text(settings),
         reply_markup=await _settings_markup(settings),
     )
-    await query.answer(f"Auto Delete {'enabled' if new_val else 'disabled'}.")
+    labels = {"auto_del": "Auto Delete", "protect_content": "Protect Content"}
+    await query.answer(f"{labels[field]} {'enabled' if new_val else 'disabled'}.")
 
 
 # ── Set fields ────────────────────────────────────────────────────────────────
@@ -89,16 +112,15 @@ async def set_field(client: Bot, query: CallbackQuery):
         return
 
     field = query.matches[0].group(1)
-
     prompts = {
         "del_timer":
             "⏱ Send new delete timer in <b>seconds</b> (e.g. <code>300</code>):",
         "dump_channel":
-            "📦 Send the dump channel ID (e.g. <code>-1002864509771</code>).\n"
+            "📦 Send dump channel ID (e.g. <code>-1002864509771</code>).\n"
             "Send <code>none</code> to remove.",
         "custom_start_msg":
             "💬 Send your custom <b>Start Message</b>.\n\n"
-            "You can use these variables:\n"
+            "Variables you can use:\n"
             "<code>{first}</code> – first name\n"
             "<code>{last}</code> – last name\n"
             "<code>{username}</code> – @username\n"
@@ -160,7 +182,6 @@ async def set_field(client: Bot, query: CallbackQuery):
             await update_setting("custom_start_msg", None)
             await reply.reply_text("✅ Start message reset to default.")
         else:
-            # Quick validation — try formatting with dummy values
             try:
                 val_text.format(first="Test", last="User", username="@test", mention="Test", id=123)
             except KeyError as e:
