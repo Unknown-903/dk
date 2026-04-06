@@ -70,10 +70,11 @@ async def start_command(client: Bot, message: Message):
         except Exception:
             return
 
-        settings = await get_settings()
-        auto_del   = settings.get("auto_del", True)
-        del_timer  = settings.get("del_timer", 120)
-        custom_cap = settings.get("custom_caption")
+        settings       = await get_settings()
+        auto_del       = settings.get("auto_del", True)
+        del_timer      = settings.get("del_timer", 120)
+        custom_cap     = settings.get("custom_caption")
+        protect_content = settings.get("protect_content", False)
 
         wait_msg = await message.reply("⏳ Please wait...")
         try:
@@ -99,7 +100,7 @@ async def start_command(client: Bot, message: Message):
                     caption=caption,
                     parse_mode=ParseMode.HTML,
                     reply_markup=None,
-                    protect_content=PROTECT_CONTENT,
+                    protect_content=protect_content,
                 )
                 # Skip auto-delete for owner/admin
                 if auto_del and not is_owner_or_admin:
