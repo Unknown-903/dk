@@ -28,8 +28,12 @@ async def is_subscribed(filter, client, update):
     member_ok = (ChatMemberStatus.OWNER, ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.MEMBER)
 
     for ch in channels:
-        ch_id   = ch['id']
+        ch_id   = ch.get('id')
         ch_type = ch.get('type', 'public')
+
+        # Folder — no membership check, just a link button
+        if ch_type == 'folder':
+            continue
 
         # Request channels — DB mein check karo ki user ne request bheji hai ya nahi
         if ch_type == 'request':
