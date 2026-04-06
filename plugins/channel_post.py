@@ -55,12 +55,13 @@ async def channel_post(client: Bot, message: Message):
     # Stats
     await record_upload(uid)
 
-    # Dump channel mirror
+    # Dump channel mirror — DB wala message copy karo (original nahi)
+    # Taaki duplicate na ho aur sirf ek baar jaaye
     settings = await get_settings()
     dump_ch  = settings.get("dump_channel")
-    if dump_ch:
+    if dump_ch and dump_ch != client.db_channel.id:
         try:
-            await message.copy(chat_id=dump_ch, disable_notification=True)
+            await post_msg.copy(chat_id=dump_ch, disable_notification=True)
         except Exception:
             pass
 
