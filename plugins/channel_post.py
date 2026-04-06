@@ -24,6 +24,16 @@ async def channel_post(client: Bot, message: Message):
     if not is_admin:
         return
 
+    # Agar message DB channel se forward hua hai toh ignore karo
+    if message.forward_from_chat and message.forward_from_chat.id == client.db_channel.id:
+        return
+    # Agar message via bot se forward hua (bot ne deliver ki file) toh ignore
+    if message.forward_from and message.forward_from.is_bot:
+        return
+    # Agar forward sender unknown hai (protected content forward) toh bhi skip
+    if message.forward_sender_name is not None:
+        return
+
     wait = await message.reply_text("⏳ Please wait...")
     try:
         post_msg = await message.copy(chat_id=client.db_channel.id, disable_notification=True)
