@@ -34,7 +34,7 @@ async def _mfsub_panel(client) -> tuple:
     if not entries:
         return (
             "<b>Koi FSub entry set nahi hai.</b>\n/fsub se add karo.",
-            InlineKeyboardMarkup([[InlineKeyboardButton("Close", callback_data="mfsub_close")]])
+            InlineKeyboardMarkup([[InlineKeyboardButton("❌ Close", callback_data="mfsub_close")]])
         )
 
     lines   = ["<b>FSub List:</b>\n"]
@@ -48,8 +48,8 @@ async def _mfsub_panel(client) -> tuple:
             name     = _display_name(entry, fallback)
             lines.append(f"<b>{name}</b> — Folder")
             buttons.append([
-                InlineKeyboardButton(f"{name} — Edit",   callback_data=f"mfsub_edit_folder:{eid}"),
-                InlineKeyboardButton("Remove", callback_data=f"mfsub_rm:{eid}"),
+                InlineKeyboardButton(f"✏️ {name}",    callback_data=f"mfsub_edit_folder:{eid}"),
+                InlineKeyboardButton("🗑 Remove", callback_data=f"mfsub_rm:{eid}"),
             ])
         else:
             try:
@@ -59,11 +59,11 @@ async def _mfsub_panel(client) -> tuple:
             name = _display_name(entry, tg_name)
             lines.append(f"<b>{name}</b> — {etype} (<code>{eid}</code>)")
             buttons.append([
-                InlineKeyboardButton(f"{name} — Edit",   callback_data=f"mfsub_edit:{eid}"),
-                InlineKeyboardButton("Remove", callback_data=f"mfsub_rm:{eid}"),
+                InlineKeyboardButton(f"✏️ {name}",    callback_data=f"mfsub_edit:{eid}"),
+                InlineKeyboardButton("🗑 Remove", callback_data=f"mfsub_rm:{eid}"),
             ])
 
-    buttons.append([InlineKeyboardButton("Close", callback_data="mfsub_close")])
+    buttons.append([InlineKeyboardButton("❌ Close", callback_data="mfsub_close")])
     return "\n".join(lines), InlineKeyboardMarkup(buttons)
 
 
@@ -72,21 +72,21 @@ async def _mfsub_panel(client) -> tuple:
 async def fsub_start(client: Bot, message: Message):
     markup = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("Public",  callback_data="fsub_type:public"),
-            InlineKeyboardButton("Private", callback_data="fsub_type:private"),
+            InlineKeyboardButton("🌐 Public",  callback_data="fsub_type:public"),
+            InlineKeyboardButton("🔒 Private", callback_data="fsub_type:private"),
         ],
         [
-            InlineKeyboardButton("Request", callback_data="fsub_type:request"),
-            InlineKeyboardButton("Folder",  callback_data="fsub_type:folder"),
+            InlineKeyboardButton("📨 Request", callback_data="fsub_type:request"),
+            InlineKeyboardButton("📁 Folder",  callback_data="fsub_type:folder"),
         ],
-        [InlineKeyboardButton("Cancel", callback_data="fsub_cancel")],
+        [InlineKeyboardButton("❌ Cancel", callback_data="fsub_cancel")],
     ])
     await message.reply_text(
-        "<b>New FSub Entry</b>\n\n"
-        "<b>Public</b> — Public channel, bot admin hona chahiye\n"
-        "<b>Private</b> — Private channel, bot admin + invite link\n"
-        "<b>Request</b> — Join request collect karta hai\n"
-        "<b>Folder</b> — Telegram folder link (bot admin ki zarurat nahi)",
+        "<b>➕ New FSub Entry</b>\n\n"
+        "🌐 <b>Public</b> — Public channel, bot admin hona chahiye\n"
+        "🔒 <b>Private</b> — Private channel, bot admin + invite link\n"
+        "📨 <b>Request</b> — Join request collect karta hai\n"
+        "📁 <b>Folder</b> — Telegram folder link (bot admin ki zarurat nahi)",
         reply_markup=markup,
     )
 
@@ -326,15 +326,15 @@ async def mfsub_edit_channel(client: Bot, query: CallbackQuery):
 
     markup = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("Public",  callback_data=f"mfsub_chtype:{ch_id}:public"),
-            InlineKeyboardButton("Private", callback_data=f"mfsub_chtype:{ch_id}:private"),
+            InlineKeyboardButton("🌐 Public",  callback_data=f"mfsub_chtype:{ch_id}:public"),
+            InlineKeyboardButton("🔒 Private", callback_data=f"mfsub_chtype:{ch_id}:private"),
         ],
         [
-            InlineKeyboardButton("Request", callback_data=f"mfsub_chtype:{ch_id}:request"),
+            InlineKeyboardButton("📨 Request", callback_data=f"mfsub_chtype:{ch_id}:request"),
         ],
-        [InlineKeyboardButton("Link update karo",  callback_data=f"mfsub_chlink:{ch_id}")],
-        [InlineKeyboardButton("Custom naam badlo", callback_data=f"mfsub_chname:{ch_id}")],
-        [InlineKeyboardButton("Back",              callback_data="mfsub_back")],
+        [InlineKeyboardButton("🔗 Link update karo",  callback_data=f"mfsub_chlink:{ch_id}")],
+        [InlineKeyboardButton("✏️ Custom naam badlo", callback_data=f"mfsub_chname:{ch_id}")],
+        [InlineKeyboardButton("⬅️ Back",              callback_data="mfsub_back")],
     ])
     await query.message.edit_text(
         f"<b>Edit: {name}</b>\n"
@@ -363,9 +363,9 @@ async def mfsub_edit_folder(client: Bot, query: CallbackQuery):
 
     name = _display_name(entry, "Folder")
     markup = InlineKeyboardMarkup([
-        [InlineKeyboardButton("Custom naam badlo", callback_data=f"mfsub_folder_name:{folder_link}")],
-        [InlineKeyboardButton("Link badlo",        callback_data=f"mfsub_folder_link:{folder_link}")],
-        [InlineKeyboardButton("Back",              callback_data="mfsub_back")],
+        [InlineKeyboardButton("✏️ Custom naam badlo", callback_data=f"mfsub_folder_name:{folder_link}")],
+        [InlineKeyboardButton("🔗 Link badlo",        callback_data=f"mfsub_folder_link:{folder_link}")],
+        [InlineKeyboardButton("⬅️ Back",              callback_data="mfsub_back")],
     ])
     await query.message.edit_text(
         f"<b>Edit Folder: {name}</b>\n"
