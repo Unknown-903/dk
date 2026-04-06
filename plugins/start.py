@@ -47,6 +47,8 @@ async def start_command(client: Bot, message: Message):
         await message.reply_text("🚫 You are banned from using this bot.")
         return
 
+    is_owner_or_admin = (uid == OWNER_ID or uid in ADMINS or await present_admin(uid))
+
     if not await present_user(uid):
         await add_user(uid)
 
@@ -99,7 +101,8 @@ async def start_command(client: Bot, message: Message):
                     reply_markup=None,
                     protect_content=PROTECT_CONTENT,
                 )
-                if auto_del:
+                # Skip auto-delete for owner/admin
+                if auto_del and not is_owner_or_admin:
                     asyncio.create_task(_del_after(sent, del_timer))
                 if idx == len(messages) - 1:
                     last_msg = sent
@@ -107,7 +110,7 @@ async def start_command(client: Bot, message: Message):
             except FloodWait as e:
                 await asyncio.sleep(e.x)
 
-        if auto_del and last_msg:
+        if auto_del and last_msg and not is_owner_or_admin:
             asyncio.create_task(_notify_del(client, last_msg, del_timer))
         return
 
@@ -143,12 +146,23 @@ async def not_joined(client: Bot, message: Message):
         await message.reply_text("🚫 You are banned from using this bot.")
         return
 
-    channels = await get_fsub_channels()
+    channels  = await get_fsub_channels()
     uid_check = message.from_user.id
-    buttons   = []
+    is_owner_admin = (uid_check == OWNER_ID or uid_check in ADMINS or await present_admin(uid_check))
+
+    # Collect all channel buttons, then pair them 2 per row
+    ch_buttons = []
     for ch in channels:
-        ch_id   = ch['id']
+        ch_id   = ch.get('id')
         ch_type = ch.get('type', 'public')
+
+        if ch_type == 'folder':
+            link = ch.get('link') or ""
+            if not link:
+                continue
+            name = ch.get('custom_name') or "Folder"
+            ch_buttons.append(InlineKeyboardButton(name, url=link))
+            continue
 
         # Resolve display name: custom_name > Telegram title > ID
         try:
@@ -159,15 +173,20 @@ async def not_joined(client: Bot, message: Message):
 
         if ch_type == 'request':
             link = ch.get('link') or ""
-            already_requested = await has_join_request(uid_check, ch_id)
-            label = f"✅ {name} — Request Sent" if already_requested else f"📨 {name} — Send Request"
-            if link:
-                buttons.append([InlineKeyboardButton(label, url=link)])
+            if not link:
+                continue
+            already = (not is_owner_admin) and await has_join_request(uid_check, ch_id)
+            label   = f"{name} ✅" if already else name
+            ch_buttons.append(InlineKeyboardButton(label, url=link))
         else:
             link = client.fsub_invite_links.get(ch_id, "")
-            icon = "🔒" if ch_type == "private" else "📢"
             if link:
-                buttons.append([InlineKeyboardButton(f"{icon} {name}", url=link)])
+                ch_buttons.append(InlineKeyboardButton(name, url=link))
+
+    # Pair buttons 2 per row
+    buttons = []
+    for i in range(0, len(ch_buttons), 2):
+        buttons.append(ch_buttons[i:i+2])
 
     try:
         deep = message.command[1]
